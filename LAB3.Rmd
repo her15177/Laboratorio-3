@@ -1,0 +1,80 @@
+---
+title: "Laboratorio 3. Reconocimiento de caracteres manuscritos"
+author: "Paolo Marsicovetere, Juan Andrés Garcia, Marlon Hernández"
+date: "19 de septiembre de 2018"
+output: 
+  html_document:
+    theme: simplex
+    code_folding: hide
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(fig.align = "center")
+set.seed(1234)
+```
+
+```{r librerias, include=FALSE}
+#instalación de paquetes
+if (!require("knitr"))    {install.packages("knitr");   library("knitr")}
+if (!require("kableExtra"))    {install.packages("kableExtra");   library("kableExtra")}
+if (!require("formattable"))    {install.packages("formattable");   library("formattable")}
+if (!require("keras"))    {install.packages("keras");   library("keras")}
+install_keras()
+
+x<-sample(1:nrow(train),0.6*nrow(train))
+ttrain<- train[x,] #train del train 60%
+ttest<- train[-x,] #test del train 40%
+```
+
+```{r datos, include=FALSE}
+#cargar archivo fallecidos y lesionados
+train <- data.matrix(read.csv("train.csv", header=T))
+test <- data.matrix(read.csv("test.csv", header=T))
+```
+
+
+##Deep Learning
+```{r DEEP LEARNING, include=FALSE}
+#carga de los datos para entrenamiento
+x<-sample(1:nrow(train),0.6*nrow(train))
+ttrain<- train[x,] #train del train 60%
+ttest<- train[-x,] #test del train 40%
+
+#separación de la variable del numero para ajustarla al modelo
+label_ttrain<-to_categorical(ttrain[,1] ,10)
+label_ttest<-to_categorical(ttest[,1] ,10)
+
+#modelo sequencial con activación softmax
+model <- keras_model_sequential() 
+model %>% 
+  layer_dense(units = 256, activation = 'relu', input_shape = c(784)) %>% 
+  layer_dropout(rate = 0.4) %>% 
+  layer_dense(units = 128, activation = 'relu') %>%
+  layer_dropout(rate = 0.3) %>%
+  layer_dense(units = 10, activation = 'softmax')
+
+#compilar el modelo con las metricas
+model %>% compile(
+  loss = 'categorical_crossentropy',
+  optimizer = optimizer_rmsprop(),
+  metrics = c('accuracy')
+)
+
+#entrenamiento del modelo utilizando fit
+history <- model %>% fit(
+  ttrain[,-1], label_ttrain, 
+  epochs = 30, batch_size = 128, 
+  validation_split = 0.2
+)
+
+plot(history)
+
+#rendimiento del modelo
+model %>% evaluate(ttest[,-1], label_ttest)
+
+#prediccion con el modelo
+pred<-model %>% predict_classes(ttest[,-1])
+ttest<-cbind(ttest,pred)
+```
